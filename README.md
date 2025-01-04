@@ -76,10 +76,12 @@ Arguments:
 > [!WARNING]
 > The path requires a `/` at the beginning. `-path /minecraft`
 
-### Examples
+### Forked.
+Thanks to Ryun for the original code. https://github.com/sss-ryun/craftsocketproxy
 
-I have made three [examples](https://github.com/sss-ryun/craftsocketproxy/tree/master/examples/src/main/kotlin/) if you
-want to use this as a dependency and create your own plugin or mod or whatever.
+##Contributors.
+Use gradle for building the JAR. Let me know if you need help.
+
 
 # DISCLAIMER
 ```
