@@ -3,8 +3,9 @@ Tunnel Minecraft Servers to a different port or proxy a Minecraft Server through
 
 ## Supports
 * All Minecraft Versions.
-* Any Minecraft Server. (Possibly for other games too.)
+* Any Minecraft Server. (or any TCP server.)
 * WebSockets.
+* Cloudflare/Cloudflared
 
 ## Abilities
 * Use a CDN like Cloudflare to proxy your Minecraft server.
