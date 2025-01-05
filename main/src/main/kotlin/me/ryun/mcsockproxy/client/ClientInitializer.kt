@@ -6,15 +6,14 @@ import io.netty.channel.socket.SocketChannel
 import io.netty.handler.codec.http.HttpClientCodec
 import io.netty.handler.codec.http.HttpObjectAggregator
 import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketClientCompressionHandler
+import io.netty.handler.logging.LogLevel
+import io.netty.handler.logging.LoggingHandler
 import me.ryun.mcsockproxy.common.CraftOutboundConnection
-import me.ryun.mcsockproxy.common.CraftConnectionConfiguration
 import java.util.concurrent.atomic.AtomicReference
 
 internal class ClientInitializer(
     private val handler: ClientInboundConnectionHandler,
-    private val clientChannel: AtomicReference<Channel?>,
-    private val configuration: CraftConnectionConfiguration // Add configuration parameter
-): ChannelInitializer<SocketChannel>() {
+    private val clientChannel: AtomicReference<Channel?>): ChannelInitializer<SocketChannel>() {
 
     override fun initChannel(channel: SocketChannel) {
         channel.pipeline().addLast(
@@ -23,6 +22,6 @@ internal class ClientInitializer(
             WebSocketClientCompressionHandler.INSTANCE,
             handler
         )
-        channel.pipeline().addLast(CraftOutboundConnection(clientChannel, configuration = configuration))
+        channel.pipeline().addLast(CraftOutboundConnection(clientChannel))
     }
 }

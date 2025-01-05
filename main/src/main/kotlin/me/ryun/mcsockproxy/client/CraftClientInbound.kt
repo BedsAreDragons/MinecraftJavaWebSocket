@@ -2,6 +2,7 @@ package me.ryun.mcsockproxy.client
 
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.ByteBufUtil
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
@@ -9,17 +10,20 @@ import io.netty.channel.ChannelInitializer
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame
+import io.netty.handler.logging.LogLevel
+import io.netty.handler.logging.LoggingHandler
 import me.ryun.mcsockproxy.common.CraftConnectionConfiguration
 import me.ryun.mcsockproxy.common.CraftOutboundConnection
 import me.ryun.mcsockproxy.common.CraftSocketConstants
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * From client
+ */
 internal class CraftClientInbound(
     private val configuration: CraftConnectionConfiguration,
     private val clientChannel: AtomicReference<Channel?>,
-    private val websocketChannel: Channel? = null,
-    private val proxyClient: ProxyClient // Add proxyClient as a parameter
-): ChannelInboundHandlerAdapter() {
+    private val websocketChannel: Channel? = null): ChannelInboundHandlerAdapter() {
     private lateinit var channel: Channel
     private var isChannelFlushable = false
 
@@ -34,7 +38,7 @@ internal class CraftClientInbound(
             val bootstrap = Bootstrap()
             bootstrap.group(context.channel().eventLoop())
                 .channel(NioSocketChannel::class.java)
-                .handler(CraftClientHandler(context.channel(), configuration))
+                .handler(CraftClientHandler(context.channel()))
             println(CraftSocketConstants.CONNECTED_TRANSPARENT)
             val channelFuture = bootstrap.connect(configuration.host, configuration.port)
             channel = channelFuture.channel()
@@ -60,15 +64,11 @@ internal class CraftClientInbound(
         channel.disconnect()
         println(CraftSocketConstants.DISCONNECTED_CLIENT)
         context.close()
-        ProxyClient.scheduleRestart(proxyClient)  // Pass the proxyClient parameter correctly
     }
 
-    private class CraftClientHandler(
-        private val channel: Channel,
-        private val configuration: CraftConnectionConfiguration // Add configuration parameter
-    ): ChannelInitializer<SocketChannel>() {
+    private class CraftClientHandler(private val channel: Channel): ChannelInitializer<SocketChannel>() {
         override fun initChannel(channel: SocketChannel) {
-            channel.pipeline().addLast(CraftOutboundConnection(AtomicReference<Channel?>(this.channel), configuration = configuration))
+            channel.pipeline().addLast(CraftOutboundConnection(AtomicReference<Channel?>(this.channel)))
         }
     }
 }

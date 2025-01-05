@@ -19,7 +19,7 @@ fun main(args: Array<String>) {
 
     val doServer = args.contains("--s")
     val doClientProxy = args.contains("--c")
-    val useSecure = args.contains("--wss") 
+    val useSecure = args.contains("--wss")
 
     if ((doServer.int + doClientProxy.int) > 1) {
         println("Ambiguous arguments. You cannot start both a proxy and a server in the same instance.")
@@ -29,10 +29,10 @@ fun main(args: Array<String>) {
     if (!doServer && !doClientProxy) {
         println(
             """
-                Craft Socket Proxy
+                MinecraftJavaWebSocket
                 Version: $VERSION
-                Author: SSS Ryun (sss-ryun)
-                Contributor: BedsDrout (bedsaredragons)
+                Forked From: SSS Ryun (sss-ryun)
+                Author: BedsDrout (BedsAreDragons)
             """.trimIndent()
         )
         printHelp()
@@ -61,8 +61,14 @@ fun main(args: Array<String>) {
     } else {
         println("Starting proxy client...")
         val config = CraftConnectionConfiguration(proxyPort, hostname, port)
-        ProxyClient.serve(config, path, useSecure) 
+        ProxyClient.serve(config, path, useSecure)
     }
+
+    // Optional: Hook to handle graceful shutdown
+    Runtime.getRuntime().addShutdownHook(Thread {
+        println("Shutting down gracefully...")
+        // Here you can add any cleanup logic if needed
+    })
 }
 
 fun printHelp() {

@@ -6,14 +6,16 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import me.ryun.mcsockproxy.common.CraftConnectionConfiguration
 import me.ryun.mcsockproxy.common.CraftSocketConstants
 import me.ryun.mcsockproxy.common.IllegalConfigurationException
+import io.netty.handler.codec.http.websocketx.PingWebSocketFrame
+import io.netty.handler.codec.http.websocketx.PongWebSocketFrame
 
 class ProxyServer private constructor(configuration: CraftConnectionConfiguration, path: String) {
     init {
-        if(configuration.host.isNullOrEmpty())
+        if (configuration.host.isNullOrEmpty())
             throw IllegalConfigurationException("Host is not configured.")
-        if(configuration.port == 0)
+        if (configuration.port == 0)
             throw IllegalConfigurationException("Port is not configured.")
-        if(configuration.proxyPort == 0)
+        if (configuration.proxyPort == 0)
             throw IllegalConfigurationException("Proxy Port is not configured.")
 
         val bossGroup = NioEventLoopGroup(1)

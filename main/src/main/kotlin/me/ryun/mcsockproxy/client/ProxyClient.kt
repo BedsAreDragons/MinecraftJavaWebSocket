@@ -7,24 +7,24 @@ import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.http.DefaultHttpHeaders
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory
 import io.netty.handler.codec.http.websocketx.WebSocketVersion
+import io.netty.handler.codec.http.websocketx.PingWebSocketFrame
 import me.ryun.mcsockproxy.common.CraftConnectionConfiguration
 import me.ryun.mcsockproxy.common.CraftSocketConstants
 import me.ryun.mcsockproxy.common.IllegalConfigurationException
 import java.net.BindException
 import java.net.ConnectException
 import java.net.ServerSocket
-import java.net.URI
 import java.io.IOException
+import java.net.URI
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import java.util.Queue
 import java.util.concurrent.ConcurrentLinkedQueue
-import kotlin.math.pow
 
 class ProxyClient private constructor(
     private val configuration: CraftConnectionConfiguration,
     private val path: String,
-    private val useSecure: Boolean = false
+    private val useSecure: Boolean = false // Add flag for wss:// support
 ) {
 
     private val group = NioEventLoopGroup()
@@ -35,6 +35,7 @@ class ProxyClient private constructor(
     private var channel: Channel? = null
     private val outboundChannel = AtomicReference<Channel?>(null)
     private val packetQueue: Queue<Any> = ConcurrentLinkedQueue()
+    private var isConnected = false
     private var backoffDelay = 1L
 
     init {
@@ -75,7 +76,7 @@ class ProxyClient private constructor(
 
     private fun start() {
         try {
-            val scheme = if (useSecure) "wss" else "ws"
+            val scheme = if (useSecure) "wss" else "ws" // Dynamic protocol selection
             val wsURI = URI("$scheme://${configuration.host}:${configuration.port}$path")
 
             println(CraftSocketConstants.CONNECTION_ATTEMPT + " $wsURI")
@@ -88,20 +89,25 @@ class ProxyClient private constructor(
                     true,
                     DefaultHttpHeaders()
                 )
-            ) { reconnect() }
+            )
 
             val bootstrap = Bootstrap()
             bootstrap.group(group)
                 .channel(NioSocketChannel::class.java)
-                .handler(ClientInitializer(handler, outboundChannel, configuration))
+                .handler(ClientInitializer(handler, outboundChannel))
 
             channel = bootstrap.connect(wsURI.host, wsURI.port).sync().channel()
             handler.getHandshakeFuture().sync()
 
-            channel?.closeFuture()?.addListener {
-                if (it.isSuccess) {
-                    successRestarts = 0
+            // Send periodic ping frames
+            group.scheduleAtFixedRate({
+                if (isConnected) {
+                    channel?.writeAndFlush(PingWebSocketFrame())
                 }
+            }, 0, 30, TimeUnit.SECONDS)
+
+            channel?.closeFuture()?.addListener {
+                isConnected = false
                 scheduleRestart(this)
             }
 
@@ -110,6 +116,8 @@ class ProxyClient private constructor(
                     "${if (useSecure) "wss" else "ws"}://${configuration.host}:${configuration.port} -> localhost:${configuration.proxyPort}"
             )
 
+            releasePort(configuration.proxyPort)
+
             if (!isPortAvailable(configuration.proxyPort)) {
                 println("Failed to bind to port ${configuration.proxyPort}. Retrying...")
                 releasePort(configuration.proxyPort)
@@ -117,8 +125,14 @@ class ProxyClient private constructor(
                 return
             }
 
-            ProxyCraftClient.serve(configuration, outboundChannel, channel, path, useSecure)
+            ProxyCraftClient.serve(configuration, outboundChannel, channel)
+            isConnected = true
             backoffDelay = 1
+
+            // Process queued packets
+            while (!packetQueue.isEmpty()) {
+                channel?.writeAndFlush(packetQueue.poll())
+            }
         } catch (cause: Throwable) {
             when {
                 cause is ConnectException && cause.message!!.contains("Connection refused") -> {
@@ -154,6 +168,14 @@ class ProxyClient private constructor(
             true
         } catch (e: IOException) {
             false
+        }
+    }
+
+    fun sendPacket(packet: Any) {
+        if (isConnected) {
+            channel?.writeAndFlush(packet)
+        } else {
+            packetQueue.add(packet)
         }
     }
 }
